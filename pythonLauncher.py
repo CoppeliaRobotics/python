@@ -1,7 +1,6 @@
 import sys
 import cbor
 import zmq
-import os
 
 context = zmq.Context()
 socket = context.socket(zmq.REP)
@@ -13,14 +12,9 @@ while True:
     rep = {}
     if req['cmd'] == 'loadCode':
         try:
-            s = req['info'] + "_" + str(os.getpid()) + ".py"
-            if sys.platform.startswith('win'):
-                s = "z:\\" + s
-            else:
-                s = "//" + s
-            code = compile(req['code'], s, "exec") #__EXCEPTION__
+            code = compile(req['code'], req['info'], "exec") #__EXCEPTION__
             exec(code,module) #__EXCEPTION__
-            rep = {'ret': s}
+            rep = {'ret': None}
         except Exception as e:
             import traceback
             rep = {'err': traceback.format_exc()}
