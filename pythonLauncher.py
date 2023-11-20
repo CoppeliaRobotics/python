@@ -1,6 +1,11 @@
 import sys
-import cbor
+
 import zmq
+
+try:
+    import cbor2 as cbor
+except ModuleNotFoundError:
+    import cbor
 
 context = zmq.Context()
 socket = context.socket(zmq.REP)
