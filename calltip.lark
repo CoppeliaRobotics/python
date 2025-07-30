@@ -1,7 +1,7 @@
 func_def: [out_arg_list "="] func_name "(" [in_arg_list] ")"
 func_name: ID ("." ID)*
 _type: type | array_type | array_type_fixed | array_type_range | array_type_min
-_basic_type: T_INT | T_FLOAT | T_DOUBLE | T_BOOL | T_BUFFER | T_STRING | T_VECTOR3 | T_MATRIX | T_QUATERNION | T_POSE | T_COLOR | T_HANDLE | T_MAP | T_FUNC | T_ANY
+_basic_type: T_INT | T_FLOAT | T_DOUBLE | T_BOOL | T_BUFFER | T_STRING | T_MATRIX | T_VECTOR | T_VECTOR3 | T_QUATERNION | T_POSE | T_COLOR | T_HANDLE | T_MAP | T_FUNC | T_ANY
 type: _basic_type
 array_type: _basic_type "[" "]"
 array_type_fixed: _basic_type "[" NUM "]"
@@ -27,8 +27,9 @@ T_DOUBLE: "double"
 T_BOOL: "bool"
 T_BUFFER: "buffer"
 T_STRING: "string"
-T_VECTOR3: "vector3"
 T_MATRIX: "matrix"
+T_VECTOR: "vector"
+T_VECTOR3: "vector3"
 T_QUATERNION: "quaternion"
 T_POSE: "pose"
 T_COLOR: "color"
