@@ -5,4 +5,4 @@
 #Python runs just so that we have _evalExec and similar
 
 def sysCall_init():
-    sim = require('sim-2')
+    sim = require('sim-1')
