@@ -12,7 +12,7 @@ except ModuleNotFoundError:
 context = zmq.Context()
 socket = context.socket(zmq.REP)
 socket.bind(sys.argv[1])
-socket.setsockopt(zmq.RCVTIMEO, 1)
+socket.setsockopt(zmq.RCVTIMEO, 1000)
 PID = int(sys.argv[2])
 module = {}
 
