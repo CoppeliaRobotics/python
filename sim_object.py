@@ -85,24 +85,26 @@ class Object:
         super().__setattr__('_properties', PropertyGroup(handle))
 
         import json
-        objMetaInfo = json.loads(sim.getStringProperty(self._handle, 'objectMetaInfo'))
-        for ns, opts in objMetaInfo['namespaces'].items():
+        super().__setattr__('_objMetaInfo', json.loads(sim.getStringProperty(self._handle, 'objectMetaInfo')))
+        for ns, opts in self._objMetaInfo['namespaces'].items():
             super().__setattr__(ns, PropertyGroup(handle, prefix=ns, **opts))
-        for m, f in objMetaInfo['methods'].items():
-            mod, *ff = f.split('.')
-            modn, modv = mod, None
-            if '-' in mod:
-                modn, modv = mod.split('-', 1)
-            globals()[modn] = require(mod)
-            func = globals()[modn]
-            for f in ff:
-                func = getattr(func, f)
-            self._methods[m] = func
+        super().__setattr__('_methods', self._objMetaInfo['methods'])
 
     def __getattr__(self, k):
         assert isinstance(k, str)
 
         if k in self._methods:
+            if isinstance(self._methods[k], str):
+                mod, *fields = self._methods[k].split('.')
+                modName, modVersion = mod, None
+                if '-' in mod:
+                    modName, modVersion = mod.split('-', 1)
+                globals()[modName] = require(mod)
+                func = globals()[modName]
+                for field in fields:
+                    func = getattr(func, field, None)
+                    if not func: break
+                self._methods[k] = lambda *args: func(self._handle, *args)
             return self._methods[k]
         else:
             return self._properties.__getattr__(k)
