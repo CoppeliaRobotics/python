@@ -101,3 +101,7 @@ class Object:
 
     def __dir__(self):
         return dir(self._properties)
+
+    @property
+    def handle(self):
+        return self._handle
