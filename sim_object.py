@@ -39,7 +39,7 @@ class PropertyGroup:
         if prefix != '':
             k = prefix + '.' + k
 
-        ptype = sim.getPropertyInfo(self._handle, k)
+        ptype = self._opts.get('newPropertyForcedType', False) or sim.getPropertyInfo(self._handle, k)
         if ptype:
             t = sim.getPropertyTypeString(ptype, True)
             return getattr(sim, f'set{t[0].upper()}{t[1:]}Property')(self._handle, k, v)
