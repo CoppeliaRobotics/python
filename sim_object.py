@@ -20,12 +20,13 @@ class PropertyGroup:
         if prefix != '':
             k = prefix + '.' + k
 
-        if pinfo := sim.getPropertyInfo(self._handle, k):
-            ptype, pflags, descr = pinfo
+        ptype, pflags, descr = sim.getPropertyInfo(self._handle, k)
+        if ptype:
             t = sim.getPropertyTypeString(ptype, True)
             return getattr(sim, f'get{t[0].upper()}{t[1:]}Property')(self._handle, k)
 
-        if sim.getPropertyName(self._handle, 0, {'prefix': f'{k}.'}):
+        pname, pclass = sim.getPropertyName(self._handle, 0, {'prefix': f'{k}.'})
+        if pname:
             return PropertyGroup(self._handle, {'prefix': k})
 
     def __setattr__(self, k, v):
@@ -39,7 +40,9 @@ class PropertyGroup:
         if prefix != '':
             k = prefix + '.' + k
 
-        ptype = self._opts.get('newPropertyForcedType', False) or sim.getPropertyInfo(self._handle, k)
+        ptype, pflags, descr = sim.getPropertyInfo(self._handle, k)
+        if 'newPropertyForcedType' in self._opts:
+            ptype = self._opts['newPropertyForcedType']
         if ptype:
             t = sim.getPropertyTypeString(ptype, True)
             return getattr(sim, f'set{t[0].upper()}{t[1:]}Property')(self._handle, k, v)
@@ -56,8 +59,8 @@ class PropertyGroup:
             prefix += '.'
         props = {}
         for i in range(100000):
-            if not (pinfo := sim.getPropertyName(self._handle, i, {'prefix': prefix})): break
-            pname, pclass = pinfo
+            pname, pclass = sim.getPropertyName(self._handle, i, {'prefix': prefix})
+            if not pname: break
             pname = pname[len(prefix):]
             import re
             pname2 = re.sub(r'\..*', '', pname)
