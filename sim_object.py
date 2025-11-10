@@ -84,6 +84,21 @@ class Object:
         super().__setattr__('_methods', {})
         super().__setattr__('_properties', PropertyGroup(handle))
 
+        import json
+        objMetaInfo = json.loads(sim.getStringProperty(self._handle, 'objectMetaInfo'))
+        for ns, opts in objMetaInfo['namespaces'].items():
+            super().__setattr__(ns, PropertyGroup(handle, prefix=ns, **opts))
+        for m, f in objMetaInfo['methods'].items():
+            mod, *ff = f.split('.')
+            modn, modv = mod, None
+            if '-' in mod:
+                modn, modv = mod.split('-', 1)
+            globals()[modn] = require(mod)
+            func = globals()[modn]
+            for f in ff:
+                func = getattr(func, f)
+            self._methods[m] = func
+
     def __getattr__(self, k):
         assert isinstance(k, str)
 
