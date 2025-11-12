@@ -22,8 +22,7 @@ class PropertyGroup:
 
         ptype, pflags, descr = sim.getPropertyInfo(self._handle, k)
         if ptype:
-            t = sim.getPropertyTypeString(ptype, True)
-            return getattr(sim, f'get{t[0].upper()}{t[1:]}Property')(self._handle, k)
+            return getattr(sim, sim.getPropertyGetter(ptype, True))(self._handle, k)
 
         pname, pclass = sim.getPropertyName(self._handle, 0, {'prefix': f'{k}.'})
         if pname:
@@ -44,8 +43,7 @@ class PropertyGroup:
         if 'newPropertyForcedType' in self._opts:
             ptype = self._opts['newPropertyForcedType']
         if ptype:
-            t = sim.getPropertyTypeString(ptype, True)
-            return getattr(sim, f'set{t[0].upper()}{t[1:]}Property')(self._handle, k, v)
+            return getattr(sim, sim.getPropertySetter(ptype, True))(self._handle, k, v)
         else:
             sim.setProperty(self._handle, k, v)
 
@@ -67,9 +65,8 @@ class PropertyGroup:
             if pname == pname2:
                 ptype, pflags, descr = sim.getPropertyInfo(self._handle, prefix + pname)
                 if readable := ((pflags & 2) == 0):
-                    t = sim.getPropertyTypeString(ptype, True)
                     try:
-                        props[pname2] = getattr(sim, f'get{t[0].upper()}{t[1:]}Property')(self._handle, prefix + pname)
+                        props[pname2] = getattr(sim, sim.getPropertyGetter(ptype, True))(self._handle, prefix + pname)
                     except Exception as e:
                         raise Exception(f'error reading property {pname} ({pflags=}): {e}')
                 elif pname2 not in props:
