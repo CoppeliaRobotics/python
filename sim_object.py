@@ -1,11 +1,23 @@
-from builtins import require
 from copy import copy
+from types import SimpleNamespace
 
-sim = require('sim-2')
+def callMethod(handle, method, *args):
+    raise NotImplemented
+
+sim = SimpleNamespace(
+    handle_scene = -12,
+    handle_app = -13,
+    handle_self = -4,
+    propertytype_method = 240,
+    propertyinfo_removable = 4,
+)
+
+propertyInfo = {}  # cache for property info, by objectType
+
 
 class PropertyGroup:
-    def __init__(self, handle, **kwargs):
-        super().__setattr__('_handle', handle)
+    def __init__(self, obj, **kwargs):
+        super().__setattr__('_object', obj)
         super().__setattr__('_opts', copy(kwargs))
         super().__setattr__('_localProperties', {})
 
@@ -14,103 +26,120 @@ class PropertyGroup:
 
         if k in self._localProperties:
             assert 'get' in self._localProperties[k], f"local property {k} can't be read"
-            return self._localProperties[k]['get']()
+            if getter := self._localProperties[k]['get']:
+                return getter()
 
         prefix = self._opts.get('prefix', '')
         if prefix != '':
             k = prefix + '.' + k
 
-        ptype, pflags, descr = sim.getPropertyInfo(self._handle, k)
-        if ptype:
-            return getattr(sim, sim.getPropertyGetter(ptype, True))(self._handle, k)
-
-        pname, pclass = sim.getPropertyName(self._handle, 0, {'prefix': f'{k}.'})
-        if pname:
-            return PropertyGroup(self._handle, {'prefix': k})
+        obj = self._object
+        ptype, pflags, descr = obj.getPropertyInfo(k, {'noError': True}) or (None, None, None)
+        if ptype == sim.propertytype_method:
+            return lambda *args: obj.callMethod(k, *args)
+        elif ptype == 'group':
+            return PropertyGroup(obj, prefix=k)
+        elif ptype:
+            v = obj.callMethod('getProperty', k, {'type': ptype})
+            # TODO: freeze matrix/quaternion values
+            return v
+        else:
+            raise AttributeError(f"object has no attribute '{k}'")
 
     def __setattr__(self, k, v):
         assert isinstance(k, str)
 
         if k in self._localProperties:
             assert 'set' in self._localProperties[k], f"local property {k} can't be written"
-            return self._localProperties[k]['set'](v)
+            if setter := self._localProperties[k]['set']:
+                return setter(v)
 
         prefix = self._opts.get('prefix', '')
         if prefix != '':
             k = prefix + '.' + k
 
-        ptype, pflags, descr = sim.getPropertyInfo(self._handle, k)
-        if 'newPropertyForcedType' in self._opts:
-            ptype = self._opts['newPropertyForcedType']
-        if ptype:
-            return getattr(sim, sim.getPropertySetter(ptype, True))(self._handle, k, v)
-        else:
-            sim.setProperty(self._handle, k, v)
+        obj = self._object
+        obj.callMethod('setProperty', k, v, type=self._opts.get('newPropertyForcedType'))
 
     def __str__(self):
         opts_arg = (', ' + self._opts) if self._opts else ''
-        return f'sim.PropertyGroup({self._handle}{opts_arg})'
+        return f'sim.PropertyGroup({self._object.handle}{opts_arg})'
 
+    r'''
     def __dir__(self):
         prefix = self._opts.get('prefix', '')
         if prefix != '':
             prefix += '.'
         props = {}
         for i in range(100000):
-            pname, pclass = sim.getPropertyName(self._handle, i, {'prefix': prefix})
+            pname, pclass = self.getPropertyName(i, {'prefix': prefix})
             if not pname: break
             pname = pname[len(prefix):]
             import re
             pname2 = re.sub(r'\..*', '', pname)
             if pname == pname2:
-                ptype, pflags, descr = sim.getPropertyInfo(self._handle, prefix + pname)
+                ptype, pflags, descr = self.getPropertyInfo(prefix + pname)
                 if readable := ((pflags & 2) == 0):
                     try:
-                        props[pname2] = getattr(sim, sim.getPropertyGetter(ptype, True))(self._handle, prefix + pname)
+                        props[pname2] = self.getProperty(prefix + pname)
                     except Exception as e:
                         raise Exception(f'error reading property {pname} ({pflags=}): {e}')
                 elif pname2 not in props:
-                    props[pname2] = PropertyGroup(self._handle, prefix=(prefix + pname))
+                    props[pname2] = PropertyGroup(self._object, prefix=(prefix + pname))
         return props.keys()
+    '''
 
-    def registerLocalProperty(self, k, getter, setter):
+    def registerLocalProperty(self, k, getter=None, setter=None):
         self._localProperties[k] = {}
         for lpk, f in {'get': getter, 'set': setter}.items():
             self._localProperties[k][lpk] = f
 
+
 class Object:
     def __init__(self, handle):
+        if isinstance(handle, Object):
+            handle = handle.handle
+        assert isinstance(handle, int)
         super().__setattr__('_handle', handle)
-        super().__setattr__('_methods', {})
-        super().__setattr__('_properties', PropertyGroup(handle))
+        super().__setattr__('_properties', None)
 
-        import json
-        super().__setattr__('_objMetaInfo', json.loads(sim.getStringProperty(self._handle, 'objectMetaInfo')))
-        for ns, opts in self._objMetaInfo['namespaces'].items():
-            super().__setattr__(ns, PropertyGroup(handle, prefix=ns, **opts))
-        super().__setattr__('_methods', self._objMetaInfo['methods'])
+    def _setupPropertyGroups(self):
+        if self._properties: return
+
+        if self._handle == sim.handle_self:
+            super().__setattr__('_handle', callMethod(self._handle, 'getLongProperty', 'handle'))
+
+        handle = self._handle
+
+        super().__setattr__('_properties', PropertyGroup(self))
+
+        self._properties.registerLocalProperty('handle', lambda: self._handle)
+
+        # TODO: add _methods local property
+
+        objectType = self.callMethod('getStringProperty', 'objectType')
+        super().__setattr__('objectType', objectType)
+
+        namespaces = self.callMethod('getStringArrayProperty', 'metaInfo.namespaces')
+        for ns in namespaces:
+            super().__setattr__(ns, PropertyGroup(handle, prefix=ns))
 
     def __getattr__(self, k):
         assert isinstance(k, str)
 
-        if k in self._methods:
-            if isinstance(self._methods[k], str):
-                mod, *fields = self._methods[k].split('.')
-                modName, modVersion = mod, None
-                if '-' in mod:
-                    modName, modVersion = mod.split('-', 1)
-                globals()[modName] = require(mod)
-                func = globals()[modName]
-                for field in fields:
-                    func = getattr(func, field, None)
-                    if not func: break
-                self._methods[k] = lambda *args: func(self._handle, *args)
-            return self._methods[k]
-        else:
-            return self._properties.__getattr__(k)
+        self._setupPropertyGroups()
+
+        attr = getattr(super(), k, None)
+        if attr is not None:
+            return attr
+
+        return self._properties.__getattr__(k)
 
     def __setattr__(self, k, v):
         assert isinstance(k, str)
+
+        self._setupPropertyGroups()
+
         self._properties.__setattr__(k, v)
 
     def __str__(self):
@@ -121,4 +150,36 @@ class Object:
 
     @property
     def handle(self):
+        self._setupPropertyGroups()
+
         return self._handle
+
+    def callMethod(self, m, *args):
+        return callMethod(self._handle, m, *args)
+
+    def isValid(self):
+        return callMethod(self._handle, 'isValid')
+
+    def getPropertyInfo(self, pname, opts=None):
+        if self.objectType not in propertyInfo:
+            propertyInfo[self.objectType] = {}
+        if pname in propertyInfo[self.objectType]:
+            return propertyInfo[self.objectType][pname]
+        else:
+            ptype, pflags, descr = self.callMethod('getPropertyInfo', pname, opts or {}) or (None, None, None)
+            if pflags and (pflags & sim.propertyinfo_removable) > 0:
+                return ptype, pflags, descr
+            def store(ptype, pflags, descr):
+                propertyInfo[self.objectType][pname] = (ptype, pflags, descr)
+                return ptype, pflags, descr
+            if ptype:
+                return store(ptype, pflags, descr)
+            elif self.callMethod('getPropertyName', 0, {'prefix': pname + '.'}):
+                return store('group', 0, '')
+
+
+app = Object(sim.handle_app)
+scene = Object(sim.handle_scene)
+self = Object(sim.handle_self)
+
+__all__ = ['PropertyGroup', 'Object', 'app', 'scene', 'self']

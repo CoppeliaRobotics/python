@@ -1,7 +1,10 @@
 import uuid
 import zmq
 import cbor2
-from typing import Any, Dict, Optional, Tuple, Union, Callable
+import numpy as np
+from typing import Any, Dict, Optional, Callable
+
+import sim_object as sim
 
 
 class ZMQRemoteAPI:
@@ -42,22 +45,25 @@ class ZMQRemoteAPI:
                 tag += f'[{self.name}]'
             print(tag, *args)
 
-    def call_local(self, func_name: str, args: Tuple[Any, ...]) -> Tuple[Any, ...]:
+    def call_local(self, func_name: str, args: tuple[Any, ...]) -> tuple[Any, ...]:
         func = self.callables.get(func_name)
         if func is None:
             raise NameError(f'No such function: {func_name}')
         if not callable(func):
             raise TypeError(f'Not a callable: {func_name}')
         result = func(*args)
-        if not isinstance(result, tuple):
+        if result is None:
+            result = ()
+        elif not isinstance(result, tuple):
             result = (result,)
         return result
 
-    def call(self, func_name: str, *args: Any) -> Tuple[Any, ...]:
+    def call(self, func_name: str, *args: Any) -> Any | tuple[Any, ...] | None:
         self.send({'msg': 'call', 'func': func_name, 'args': args})
         while True:
             rep = self.recv(block=True)
             if rep is None:
+                print('WARNING: rep is None')
                 continue  # Should not happen with blocking recv
 
             if rep['msg'] == 'result':
@@ -66,11 +72,12 @@ class ZMQRemoteAPI:
                 ret = tuple(rep['result'])
                 if len(ret) == 1: return ret[0]
                 if len(ret) > 1: return ret
+                return
             else:
                 self.handle_request(rep)
 
     def register_callback_local(self, func_name: str) -> None:
-        def callback(*args: Any) -> Tuple[Any, ...]:
+        def callback(*args: Any) -> Any | tuple[Any, ...] | None:
             return self.call(func_name, *args)
         self.callables[func_name] = callback
 
@@ -147,21 +154,96 @@ class ZMQRemoteAPI:
             except zmq.Again:
                 return None
         try:
-            req = cbor2.loads(data)
+            req = cbor2.loads(data, tag_hook=self._tag_hook)
         except Exception as e:
             self.log(1, 'invalid request CBOR data:', e)
             return None
         self.log(2, 'received:', req)
         return req
 
+    def _tag_hook(self, decoder, tag: cbor2.CBORTag):
+        if tag.tag == 40:
+            # ND-array
+            dims, data = tag.value
+            arr = np.array(data, dtype=np.float64)
+            return arr.reshape(dims)
+        if tag.tag in range(64, 88):
+            _TAG_TO_DTYPE = {
+                64: np.dtype("u1"),        # U8
+                65: np.dtype(">u2"),       # U16BE
+                66: np.dtype(">u4"),       # U32BE
+                67: np.dtype(">u8"),       # U64BE
+                68: np.dtype("u1"),        # U8C (same as U8, often char buffer)
+                69: np.dtype("<u2"),       # U16LE
+                70: np.dtype("<u4"),       # U32LE
+                71: np.dtype("<u8"),       # U64LE
+                72: np.dtype("i1"),        # S8
+                73: np.dtype(">i2"),       # S16BE
+                74: np.dtype(">i4"),       # S32BE
+                75: np.dtype(">i8"),       # S64BE
+                77: np.dtype("<i2"),       # S16LE
+                78: np.dtype("<i4"),       # S32LE
+                79: np.dtype("<i8"),       # S64LE
+                80: np.dtype(">f2"),       # F16BE
+                81: np.dtype(">f4"),       # F32BE
+                82: np.dtype(">f8"),       # F64BE
+                83: np.dtype(">f16"),      # F128BE (may not be supported everywhere)
+                84: np.dtype("<f2"),       # F16LE
+                85: np.dtype("<f4"),       # F32LE
+                86: np.dtype("<f8"),       # F64LE
+                87: np.dtype("<f16"),      # F128LE (platform dependent)
+            }
+            if tag.tag in _TAG_TO_DTYPE:
+                dtype = _TAG_TO_DTYPE[tag.tag]
+                payload = tag.value
+                if isinstance(payload, memoryview):
+                    payload = payload.tobytes()
+                elif isinstance(payload, list):
+                    # rare fallback: list of ints
+                    payload = bytes(payload)
+                return np.frombuffer(payload, dtype=dtype)
+        if tag.tag == 4294999999:
+            handle = tag.value
+            return sim.Object(handle)
+        if tag.tag == 4294999998:
+            # handlearray -> ObjectArray
+            raise NotImplemented
+        if tag.tag == 4294970000:
+            # color
+            return tuple(tag.value)
+        if tag.tag == 4294980000:
+            # quaternion
+            return np.array(tag.value, dtype=np.float64)
+        if tag.tag == 4294980500:
+            # pose
+            return np.array(tag.value, dtype=np.float64)
+        return tag
+
 
 if __name__ == '__main__':
-    def cb(x):
-        return rapi.call('test2') + '-CB-' + x
-
     rapi = ZMQRemoteAPI({'name': 'handshake', 'server': False})
     port = rapi.call('getPort', rapi.client_id)
     rapi = ZMQRemoteAPI({'name': 'client', 'server': False, 'port': port})
+
+    '''
+    def cb(x):
+        return rapi.call('test2') + '-CB-' + x
+
     rapi.register_callback('cb', cb)
     result = rapi.call('testWithCallback', 'cb')
     print(result)
+    '''
+
+    sim.callMethod = lambda h, m, *args: rapi.call('_callmethod', h, m, *args)
+
+    print(sim.self.handle)
+    Floor = sim.scene.getObject('Floor')
+    print(Floor)
+    print(Floor.objectType)
+    print(getattr(Floor, 'metaInfo.superClass'))
+    print(Floor.metaInfo.superClass)
+    print(Floor.name)
+    print(Floor.position)
+    print(Floor.quaternion)
+    print(Floor.pose)
+    print(Floor.xxx)
