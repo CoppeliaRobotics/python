@@ -34,7 +34,7 @@ class PropertyGroup:
             k = prefix + '.' + k
 
         obj = self._object
-        ptype, pflags, descr = obj.getPropertyInfo(k, {'noError': True}) or (None, None, None)
+        ptype, pflags, descr = obj.getPropertyInfo(k, {'noError': True})
         if ptype == sim.propertytype_method:
             return lambda *args: obj.callMethod(k, *args)
         elif ptype == 'group':
@@ -164,18 +164,20 @@ class Object:
         if self.objectType not in propertyInfo:
             propertyInfo[self.objectType] = {}
         if pname in propertyInfo[self.objectType]:
-            return propertyInfo[self.objectType][pname]
+            ptype, pflags, descr = propertyInfo[self.objectType][pname]
         else:
-            ptype, pflags, descr = self.callMethod('getPropertyInfo', pname, opts or {}) or (None, None, None)
+            ptype, pflags, descr = self.callMethod('getPropertyInfo', pname, opts or {})
             if pflags and (pflags & sim.propertyinfo_removable) > 0:
                 return ptype, pflags, descr
-            def store(ptype, pflags, descr):
-                propertyInfo[self.objectType][pname] = (ptype, pflags, descr)
-                return ptype, pflags, descr
+            if not ptype:
+                pn, pc = self.callMethod('getPropertyName', 0, {'prefix': pname + '.'})
+                if pn:
+                    ptype, pflags, descr = 'group', 0, ''
+                else:
+                    ptype, pflags, descr = None, None, None
             if ptype:
-                return store(ptype, pflags, descr)
-            elif self.callMethod('getPropertyName', 0, {'prefix': pname + '.'}):
-                return store('group', 0, '')
+                propertyInfo[self.objectType][pname] = (ptype, pflags, descr)
+        return ptype, pflags, descr
 
 
 app = Object(sim.handle_app)

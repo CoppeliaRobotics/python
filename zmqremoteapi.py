@@ -246,4 +246,7 @@ if __name__ == '__main__':
     print(Floor.position)
     print(Floor.quaternion)
     print(Floor.pose)
+    print(Floor.getPropertyInfo('bla', {'noError': True}))
+    print(Floor.getPropertyName(0))
+    print(Floor.getPropertyName(100000))
     print(Floor.xxx)
