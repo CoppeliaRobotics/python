@@ -2,13 +2,13 @@ import uuid
 import zmq
 import cbor2
 import numpy as np
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Callable
 
-import sim_object as sim
+import sim
 
 
 class ZMQRemoteAPI:
-    def __init__(self, opts: Optional[Dict[str, Any]] = None):
+    def __init__(self, opts: dict[str, Any] | None = None):
         opts = opts or {}
         self.name = opts.get('name')
         self.server = bool(opts.get('server', False))
@@ -26,7 +26,7 @@ class ZMQRemoteAPI:
         else:
             self._socket.connect(f'tcp://{host}:{port}')
 
-        self.callables: Dict[str, Callable] = {}
+        self.callables: dict[str, Callable] = {}
 
     def cleanup(self) -> None:
         """Close the socket and terminate the ZMQ context."""
@@ -92,7 +92,7 @@ class ZMQRemoteAPI:
             raise RuntimeError(f'registerCallback failed: {rep["result"]}')
         self.callables[func_name] = func
 
-    def handle_request(self, req: Dict[str, Any]) -> None:
+    def handle_request(self, req: dict[str, Any]) -> None:
         """Process a single incoming request (call or registerCallback)."""
         msg = req.get('msg')
         if not isinstance(msg, str):
@@ -133,7 +133,7 @@ class ZMQRemoteAPI:
                 break
             self.handle_request(req)
 
-    def send(self, msg: Dict[str, Any]) -> None:
+    def send(self, msg: dict[str, Any]) -> None:
         if not self._socket:
             raise RuntimeError('Socket not available')
         self.log(2, 'sending:', msg)
@@ -141,7 +141,7 @@ class ZMQRemoteAPI:
         self._socket.send(data)
         self.log(2, 'sent')
 
-    def recv(self, block: bool = True) -> Optional[Dict[str, Any]]:
+    def recv(self, block: bool = True) -> dict[str, Any] | None:
         if not self._socket:
             raise RuntimeError('Socket not available')
         if block:
@@ -161,7 +161,7 @@ class ZMQRemoteAPI:
         self.log(2, 'received:', req)
         return req
 
-    def _tag_hook(self, decoder, tag: cbor2.CBORTag):
+    def _tag_hook(self, decoder: cbor2.CBORDecoder, tag: cbor2.CBORTag) -> Any:
         if tag.tag == 40:
             # ND-array
             dims, data = tag.value

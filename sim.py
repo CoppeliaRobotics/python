@@ -1,7 +1,8 @@
 from copy import copy
 from types import SimpleNamespace
+from typing import Any, Callable
 
-def callMethod(handle, method, *args):
+def callMethod(handle: int, method: str, *args: Any) -> Any:
     raise NotImplemented
 
 sim = SimpleNamespace(
@@ -16,12 +17,12 @@ propertyInfo = {}  # cache for property info, by objectType
 
 
 class PropertyGroup:
-    def __init__(self, obj, **kwargs):
+    def __init__(self, obj: Object, **kwargs: Any):
         super().__setattr__('_object', obj)
         super().__setattr__('_opts', copy(kwargs))
         super().__setattr__('_localProperties', {})
 
-    def __getattr__(self, k):
+    def __getattr__(self, k: str) -> Any:
         assert isinstance(k, str)
 
         if k in self._localProperties:
@@ -46,7 +47,7 @@ class PropertyGroup:
         else:
             raise AttributeError(f"object has no attribute '{k}'")
 
-    def __setattr__(self, k, v):
+    def __setattr__(self, k: str, v: Any) -> None:
         assert isinstance(k, str)
 
         if k in self._localProperties:
@@ -61,7 +62,7 @@ class PropertyGroup:
         obj = self._object
         obj.callMethod('setProperty', k, v, type=self._opts.get('newPropertyForcedType'))
 
-    def __str__(self):
+    def __str__(self) -> str:
         opts_arg = (', ' + self._opts) if self._opts else ''
         return f'sim.PropertyGroup({self._object.handle}{opts_arg})'
 
@@ -89,14 +90,19 @@ class PropertyGroup:
         return props.keys()
     '''
 
-    def registerLocalProperty(self, k, getter=None, setter=None):
+    def registerLocalProperty(
+            self,
+            k: str,
+            getter: Callable[[], Any] | None = None,
+            setter: Callable[[Any], None] | None = None,
+    ) -> None:
         self._localProperties[k] = {}
         for lpk, f in {'get': getter, 'set': setter}.items():
             self._localProperties[k][lpk] = f
 
 
 class Object:
-    def __init__(self, handle):
+    def __init__(self, handle: int):
         if isinstance(handle, Object):
             handle = handle.handle
         assert isinstance(handle, int)
@@ -124,7 +130,7 @@ class Object:
         for ns in namespaces:
             super().__setattr__(ns, PropertyGroup(handle, prefix=ns))
 
-    def __getattr__(self, k):
+    def __getattr__(self, k: str) -> Any:
         assert isinstance(k, str)
 
         self._setupPropertyGroups()
@@ -135,32 +141,36 @@ class Object:
 
         return self._properties.__getattr__(k)
 
-    def __setattr__(self, k, v):
+    def __setattr__(self, k: str, v: Any) -> None:
         assert isinstance(k, str)
 
         self._setupPropertyGroups()
 
         self._properties.__setattr__(k, v)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'sim.Object({self._handle})'
 
-    def __dir__(self):
+    def __dir__(self) -> list[str]:
         return dir(self._properties)
 
     @property
-    def handle(self):
+    def handle(self) -> int:
         self._setupPropertyGroups()
 
         return self._handle
 
-    def callMethod(self, m, *args):
+    def callMethod(self, m: str, *args: Any) -> Any:
         return callMethod(self._handle, m, *args)
 
-    def isValid(self):
+    def isValid(self) -> bool:
         return callMethod(self._handle, 'isValid')
 
-    def getPropertyInfo(self, pname, opts=None):
+    def getPropertyInfo(
+            self,
+            pname: str,
+            opts: dict[str, Any] | None = None,
+    ) -> tuple[int, int, str]:
         if self.objectType not in propertyInfo:
             propertyInfo[self.objectType] = {}
         if pname in propertyInfo[self.objectType]:
