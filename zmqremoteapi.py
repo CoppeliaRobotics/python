@@ -225,9 +225,11 @@ if __name__ == '__main__':
     print(result)
     '''
 
-    sim.callMethod = rapi.call
+    sim.Object._callMethod = rapi.call
 
     print(sim.self.handle)
+    print(sim.scene)
+    print(sim.scene.getObject)
     Floor = sim.scene.getObject('Floor')
     print(Floor)
     print(Floor.objectType)
