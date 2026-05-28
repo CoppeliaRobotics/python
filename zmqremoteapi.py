@@ -45,21 +45,8 @@ class ZMQRemoteAPI:
                 tag += f'[{self.name}]'
             print(tag, *args)
 
-    def call_local(self, func_name: str, args: tuple[Any, ...]) -> tuple[Any, ...]:
-        func = self.callables.get(func_name)
-        if func is None:
-            raise NameError(f'No such function: {func_name}')
-        if not callable(func):
-            raise TypeError(f'Not a callable: {func_name}')
-        result = func(*args)
-        if result is None:
-            result = ()
-        elif not isinstance(result, tuple):
-            result = (result,)
-        return result
-
-    def call(self, func_name: str, *args: Any) -> Any | tuple[Any, ...] | None:
-        self.send({'msg': 'call', 'func': func_name, 'args': args})
+    def call(self, target: int | None, func_name: str, *args: Any) -> Any | tuple[Any, ...] | None:
+        self.send({'msg': 'call', 'target': target, 'func': func_name, 'args': args})
         while True:
             rep = self.recv(block=True)
             if rep is None:
@@ -75,11 +62,6 @@ class ZMQRemoteAPI:
                 return
             else:
                 self.handle_request(rep)
-
-    def register_callback_local(self, func_name: str) -> None:
-        def callback(*args: Any) -> Any | tuple[Any, ...] | None:
-            return self.call(func_name, *args)
-        self.callables[func_name] = callback
 
     def register_callback(self, func_name: str, func: Callable) -> None:
         self.send({'msg': 'registerCallback', 'func': func_name})
@@ -103,7 +85,16 @@ class ZMQRemoteAPI:
             func_name: str = req['func']
             args = req.get('args', ())
             try:
-                result = self.call_local(func_name, args)
+                func = self.callables.get(func_name)
+                if func is None:
+                    raise NameError(f'No such function: {func_name}')
+                if not callable(func):
+                    raise TypeError(f'Not a callable: {func_name}')
+                result = func(*args)
+                if result is None:
+                    result = ()
+                elif not isinstance(result, tuple):
+                    result = (result,)
                 error = False
             except Exception as e:
                 result = str(e)
@@ -113,7 +104,7 @@ class ZMQRemoteAPI:
         elif msg == 'registerCallback':
             func_name: str = req['func']
             try:
-                self.register_callback_local(func_name)
+                self.callables[func_name] = lambda *args: self.call(None, func_name, *args)
                 error = False
                 result = None
             except Exception as e:
@@ -222,7 +213,7 @@ class ZMQRemoteAPI:
 
 if __name__ == '__main__':
     rapi = ZMQRemoteAPI({'name': 'handshake', 'server': False})
-    port = rapi.call('getPort', rapi.client_id)
+    port = rapi.call(None, 'getPort', rapi.client_id)
     rapi = ZMQRemoteAPI({'name': 'client', 'server': False, 'port': port})
 
     '''
@@ -234,7 +225,7 @@ if __name__ == '__main__':
     print(result)
     '''
 
-    sim.callMethod = lambda h, m, *args: rapi.call('_callmethod', h, m, *args)
+    sim.callMethod = rapi.call
 
     print(sim.self.handle)
     Floor = sim.scene.getObject('Floor')
