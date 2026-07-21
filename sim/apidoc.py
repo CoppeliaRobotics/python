@@ -93,10 +93,10 @@ class PropertyInfo:
                 self.supersedes.append(node.attrib.get('name'))
 
         if (label_node := prop_node.find('label')) is not None:
-            self.label = label_node.text
+            self.label = (label_node.text or '').strip()
 
         if (description_node := prop_node.find('description')) is not None:
-            self.description = description_node.text
+            self.description = (description_node.text or '').strip()
 
         if (handle_node := prop_node.find('handle')) is not None:
             self.handle_type = handle_node.attrib.get('type', 'object')
@@ -151,7 +151,7 @@ class ParamInfo:
             raise Exception('attribute "default" not allowed here')
 
         if (description_node := param_node.find('description')) is not None:
-            self.description = description_node.text
+            self.description = (description_node.text or '').strip()
 
     def __str__(self):
         return f'{self.method_info!s}, param {self.name}'
@@ -193,7 +193,7 @@ class MethodInfo:
                     self.has_errors = True
 
         if (description_node := method_node.find('description')) is not None:
-            self.description = description_node.text
+            self.description = (description_node.text or '').strip()
 
     def __str__(self):
         return f'{self.class_info!s}, method {self.name}'
