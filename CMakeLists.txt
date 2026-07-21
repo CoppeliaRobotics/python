@@ -13,5 +13,6 @@ find_package(CoppeliaSim 4.5.0.7 REQUIRED)
 
 file(GLOB PYTHON_FILES CONFIGURE_DEPENDS *.py)
 foreach(PYTHON_FILE IN LISTS PYTHON_FILES)
-    coppeliasim_add_resource(${PYTHON_FILE} SUBDIR python)
+    coppeliasim_add_python(${PYTHON_FILE})
 endforeach()
+coppeliasim_add_python_directory(sim)
