@@ -8,9 +8,9 @@ if sys.version_info < (3, 7):
     sys.exit("Python 3.7 or higher is required.")
 
 
-classes = {}
-functions = {}
-enums = {}
+classes: dict[str, ClassInfo] = {}
+functions: dict[str, MethodInfo] = {}
+enums: dict[str, EnumInfo] = {}
 
 issues = {}
 
@@ -173,8 +173,8 @@ class MethodInfo:
         self.flags.modelhashexclude = True
         self.var = method_node.attrib.get('var')
         self.aux = []
-        self.params = []
-        self.returns = []
+        self.params: list[ParamInfo] = []
+        self.returns: list[ParamInfo] = []
         self.has_errors = False
         self.description = ''
 
@@ -204,11 +204,11 @@ class ClassInfo:
         assert object_class_node.tag == 'object-class', 'invalid node tag'
         assert 'name' in object_class_node.attrib, 'missing "name" attribute'
 
-        self.name = object_class_node.attrib['name']
-        self.superclass = object_class_node.attrib.get('superclass')
-        self.properties = {}
-        self.methods = {}
-        self.namespaces = {}
+        self.name: str = object_class_node.attrib['name']
+        self.superclass: str | None = object_class_node.attrib.get('superclass')
+        self.properties: dict[str, PropertyInfo] = {}
+        self.methods: dict[str, MethodInfo] = {}
+        self.namespaces: dict[str, NamespaceInfo] = {}
 
         for property_node in object_class_node.findall('property'):
             pinfo = PropertyInfo(self, property_node)
@@ -226,8 +226,9 @@ class ClassInfo:
     def __str__(self):
         return f'class {self.name}'
 
-    def get_superclass(self):
-        return classes.get(self.superclass)
+    def get_superclass(self) -> ClassInfo | None:
+        if self.superclass:
+            return classes.get(self.superclass)
 
     def get_method(self, method_name: str, *, search_superclasses: bool = True):
         c = self
