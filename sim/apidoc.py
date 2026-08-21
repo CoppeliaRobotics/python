@@ -1,6 +1,7 @@
 from __future__ import annotations
 import sys
 import re
+from pathlib import Path
 from typing import Optional, Any
 import xml.etree.ElementTree as ET
 
@@ -11,15 +12,6 @@ if sys.version_info < (3, 7):
 classes: dict[str, ClassInfo] = {}
 functions: dict[str, MethodInfo] = {}
 enums: dict[str, EnumInfo] = {}
-
-issues = {}
-
-
-def report_issue(kind: str, obj: object, msg: str) -> None:
-    context_str = str(obj)
-    if context_str not in issues:
-        issues[context_str] = []
-    issues[context_str].append((kind, msg))
 
 
 def bool_from_str(s: Optional[str], default: Optional[bool] = None) -> bool:
@@ -158,8 +150,8 @@ class ParamInfo:
 
 
 class MethodInfo:
-    def __init__(self, cinfo: ClassInfo, method_node: ET.Element, tag: str) -> None:
-        assert isinstance(cinfo, ClassInfo)
+    def __init__(self, cinfo: ClassInfo | None, method_node: ET.Element, tag: str) -> None:
+        assert cinfo is None or isinstance(cinfo, ClassInfo)
         assert method_node.tag == tag, 'invalid node tag'
         assert 'name' in method_node.attrib, 'missing "name" attribute'
 
@@ -205,7 +197,9 @@ class ClassInfo:
         assert 'name' in object_class_node.attrib, 'missing "name" attribute'
 
         self.name: str = object_class_node.attrib['name']
-        self.superclass: str | None = object_class_node.attrib.get('superclass')
+        self.superclass_name: str | None = object_class_node.attrib.get('superclass')
+        if self.superclass_name == '':
+            self.superclass_name = None
         self.properties: dict[str, PropertyInfo] = {}
         self.methods: dict[str, MethodInfo] = {}
         self.namespaces: dict[str, NamespaceInfo] = {}
@@ -226,9 +220,10 @@ class ClassInfo:
     def __str__(self):
         return f'class {self.name}'
 
-    def get_superclass(self) -> ClassInfo | None:
-        if self.superclass:
-            return classes.get(self.superclass)
+    @property
+    def superclass(self) -> ClassInfo | None:
+        if self.superclass_name:
+            return classes.get(self.superclass_name)
 
     def get_method(self, method_name: str, *, search_superclasses: bool = True):
         c = self
@@ -237,7 +232,16 @@ class ClassInfo:
                 return c.methods[method_name]
             if not search_superclasses:
                 return
-            c = c.get_superclass()
+            c = c.superclass
+
+    def is_subclass_of(self, c: str | ClassInfo) -> bool:
+        if isinstance(c, ClassInfo):
+            return self.is_subclass_of(c.name)
+        if self.name == c:
+            return True
+        if sc := self.superclass:
+            return sc.is_subclass_of(c)
+        return False
 
 
 class EnumInfo:
@@ -257,25 +261,25 @@ class EnumInfo:
             self.items[name] = value
 
 
-def sorted_classes(mapping):
+def sorted_classes(mapping: dict[str, str | None]):
     """
-    mapping: dict[class -> superclass or None]
+    mapping: dict[class_name -> superclass_name or None]
     Returns classes sorted so that superclasses appear before subclasses.
     """
     # Build adjacency: superclass -> [subclasses]
-    children = {}
-    indegree = {}  # number of superclasses each class depends on (0 = root)
+    children: dict[str, list[str]] = {}
+    indegree: dict[str, int] = {}  # number of superclasses each class depends on (0 = root)
 
     # Initialize
-    for cls, sup in mapping.items():
-        indegree.setdefault(cls, 0)
-        if sup is not None:
-            indegree.setdefault(sup, 0)
-            # cls depends on sup
-            indegree[cls] += 1
-            children.setdefault(sup, []).append(cls)
+    for class_name, superclass_name in mapping.items():
+        indegree.setdefault(class_name, 0)
+        if superclass_name is not None:
+            indegree.setdefault(superclass_name, 0)
+            # class_name depends on superclass_name
+            indegree[class_name] += 1
+            children.setdefault(superclass_name, []).append(class_name)
         else:
-            children.setdefault(cls, [])
+            children.setdefault(class_name, [])
 
     # Kahn's algorithm: BFS topological sort
     queue = [cls for cls, deg in indegree.items() if deg == 0]
@@ -291,50 +295,51 @@ def sorted_classes(mapping):
 
     return order
 
-def get_classes(object_classes_xml):
-    tree = ET.parse(object_classes_xml)
-    object_classes_root = tree.getroot()
-    assert object_classes_root.tag == 'object-classes'
-    classes = {}
-    for object_class_node in object_classes_root:
-        if object_class_node.tag != 'object-class': continue
-        try:
-            cinfo = ClassInfo(object_class_node)
-            classes[cinfo.name] = cinfo
-        except Exception as e:
-            raise Exception(f'error in class "{object_class_node.attrib["name"]}"')
 
-    # resolve superclass:
-    for c in classes.values():
-        if isinstance(c.superclass, str):
-            c.superclass = classes.get(c.superclass)
-
-    # remove classes without a superclass:
-    for className in [n for n, c in classes.items() if c.superclass is None]:
-        if className == 'object': continue
-        report_issue('error', classes[className], "ignored because it doesn't have a superclass")
-        del classes[className]
-
-    # sort classes in topological order:
-    topo_order = sorted_classes({k: v.superclass.name if v.superclass else None for k, v in classes.items()})
-    classes = {k: classes[k] for k in topo_order}
-    # sort properties in alphabetical order:
-    for c in classes.values():
-        c.properties = {pn: c.properties[pn] for pn in sorted(c.properties.keys())}
-
-    for context_str in sorted(issues.keys()):
-        for kind, msg in sorted(issues[context_str]):
-            print(f'{context_str}: {kind}: {msg}')
-
-    return classes
+def get_classes(*, sort: str | None = None):
+    global classes
+    clss = classes
+    if sort == 'topological':
+        clss = {k: clss[k] for k in sorted_classes({k: v.superclass_name for k, v in clss.items()})}
+    return clss
 
 
-def get_enums(enums_xml):
-    tree = ET.parse(enums_xml)
-    enums_root = tree.getroot()
-    assert enums_root.tag == 'enums'
-    enums = {}
-    for enum_node in enums_root.findall('enum'):
-        enum = EnumInfo(enum_node)
-        enums[enum.name] = enum
+def get_enums():
+    global enums
     return enums
+
+
+xml_dir = Path(__file__).resolve().parent.parent.parent / 'programming' / 'include' / 'sim'
+
+objects_xml = xml_dir / 'objects.xml'
+objects_root = ET.parse(objects_xml).getroot()
+assert objects_root.tag == 'object-classes'
+for object_class_node in objects_root:
+    if object_class_node.tag != 'object-class': continue
+    try:
+        cinfo = ClassInfo(object_class_node)
+        classes[cinfo.name] = cinfo
+    except Exception as e:
+        raise Exception(f'error in class "{object_class_node.attrib["name"]}"')
+
+functions_xml = xml_dir / 'functions.xml'
+functions_root = ET.parse(functions_xml).getroot()
+assert functions_root.tag == 'functions'
+for function_node in functions_root:
+    if function_node.tag != 'function': continue
+    try:
+        minfo = MethodInfo(None, function_node, 'function')
+        functions[minfo.name] = minfo
+    except Exception as e:
+        raise Exception(f'error in function "{function_node.attrib["name"]}"')
+
+enums_xml = xml_dir / 'enums.xml'
+enums_root = ET.parse(enums_xml).getroot()
+assert enums_root.tag == 'enums'
+for enum_node in enums_root:
+    if enum_node.tag != 'enum': continue
+    try:
+        einfo = EnumInfo(enum_node)
+        enums[einfo.name] = einfo
+    except Exception as e:
+        raise Exception(f'error in enum "{enum_node.attrib["name"]}"')
