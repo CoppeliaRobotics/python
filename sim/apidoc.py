@@ -261,7 +261,7 @@ class EnumInfo:
             self.items[name] = value
 
 
-def sorted_classes(mapping: dict[str, str | None]):
+def sorted_classes(mapping: dict[str, str | None]) -> list[str]:
     """
     mapping: dict[class_name -> superclass_name or None]
     Returns classes sorted so that superclasses appear before subclasses.
@@ -296,7 +296,24 @@ def sorted_classes(mapping: dict[str, str | None]):
     return order
 
 
-def get_classes(*, sort: str | None = None):
+def get_class(class_name) -> ClassInfo | None:
+    return classes.get(class_name)
+
+
+def get_method(class_name, method_name, **kwargs) -> MethodInfo | None:
+    if c := get_class(class_name):
+        return c.get_method(method_name, **kwargs)
+
+
+def find_method(method_name) -> list[MethodInfo]:
+    ret = []
+    for c in classes.values():
+        if m := c.get_method(method_name, search_superclasses=True):
+            ret.append(m)
+    return ret
+
+
+def get_classes(*, sort: str | None = None) -> dict[str, ClassInfo]:
     global classes
     clss = classes
     if sort == 'topological':
@@ -304,40 +321,34 @@ def get_classes(*, sort: str | None = None):
     return clss
 
 
-def get_enums():
+def get_enums() -> dict[str, EnumInfo]:
     global enums
     return enums
 
 
+def _xmltree(xml_file: Path, root_tag_name: str) -> ET.Element:
+    root_node = ET.parse(xml_file).getroot()
+    assert root_node.tag == root_tag_name
+    return root_node
+
+
 xml_dir = Path(__file__).resolve().parent.parent.parent / 'programming' / 'include' / 'sim'
 
-objects_xml = xml_dir / 'objects.xml'
-objects_root = ET.parse(objects_xml).getroot()
-assert objects_root.tag == 'object-classes'
-for object_class_node in objects_root:
-    if object_class_node.tag != 'object-class': continue
+for object_class_node in _xmltree(xml_dir / 'objects.xml', 'object-classes').findall('object-class'):
     try:
         cinfo = ClassInfo(object_class_node)
         classes[cinfo.name] = cinfo
     except Exception as e:
         raise Exception(f'error in class "{object_class_node.attrib["name"]}"')
 
-functions_xml = xml_dir / 'functions.xml'
-functions_root = ET.parse(functions_xml).getroot()
-assert functions_root.tag == 'functions'
-for function_node in functions_root:
-    if function_node.tag != 'function': continue
+for function_node in _xmltree(xml_dir / 'functions.xml', 'functions').findall('function'):
     try:
         minfo = MethodInfo(None, function_node, 'function')
         functions[minfo.name] = minfo
     except Exception as e:
         raise Exception(f'error in function "{function_node.attrib["name"]}"')
 
-enums_xml = xml_dir / 'enums.xml'
-enums_root = ET.parse(enums_xml).getroot()
-assert enums_root.tag == 'enums'
-for enum_node in enums_root:
-    if enum_node.tag != 'enum': continue
+for enum_node in _xmltree(xml_dir / 'enums.xml', 'enums').findall('enum'):
     try:
         einfo = EnumInfo(enum_node)
         enums[einfo.name] = einfo
