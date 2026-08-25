@@ -53,6 +53,11 @@ class PropertyInfo:
         self.class_info = cinfo
         self.name = prop_node.attrib['name']
         self.type = prop_node.attrib['type']
+        self.array, self.array_size = False, None
+        if m := re.match(r'(\w+)\[(\d*)\]', self.type):
+            sz = m.group(2)
+            self.array, self.array_size = True, int(sz) if sz else None
+            self.type = m.group(1) + '[]'
         self.flags = PropertyFlags(self, prop_node.find('flags'))
         self.label = ''
         self.description = ''
@@ -124,7 +129,7 @@ class ParamInfo:
         assert 'type' in param_node.attrib, 'missing "type" attribute'
 
         self.method_info = minfo
-        self.array, self.item_type, self.size = False, None, None
+        self.array, self.item_type, self.array_size = False, None, None
         if parent:
             self.name = parent.name
             self.type = type
@@ -132,8 +137,8 @@ class ParamInfo:
         self.name = param_node.attrib['name']
         self.type = param_node.attrib['type']
         if m := re.match(r'^(\w+)\[(\d*)\]$', self.type):
-            self.array, self.item_type, self.size = True, ParamInfo(minfo, param_node, accepts_defaults, self, m.group(1)), int(m.group(2)) if m.group(2) else None
-            self.type = f'{self.item_type.type}array{self.size or ""}'
+            self.array, self.item_type, self.array_size = True, ParamInfo(minfo, param_node, accepts_defaults, self, m.group(1)), int(m.group(2)) if m.group(2) else None
+            self.type = f'{self.item_type.type}[]'
         self.ref = self.array or self.type in ('string', 'buffer', 'vector3', 'color', 'matrix')
         self.description = ''
 
