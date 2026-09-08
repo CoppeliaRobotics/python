@@ -31,7 +31,7 @@ class PropertyGroup:
         ptype, pflags, descr = obj.getPropertyInfo(k, {'noError': True})
         if ptype == sim.propertytype_method:
             return lambda *args: obj.callMethod(k, *args)
-        elif ptype == 'group':
+        elif ptype == sim.propertytype_group:
             return PropertyGroup(obj, prefix=k)
         elif ptype:
             v = obj.callMethod('getProperty', k, {'type': ptype})
@@ -56,7 +56,7 @@ class PropertyGroup:
         obj.callMethod('setProperty', k, v, type=self._opts.get('newPropertyForcedType'))
 
     def __str__(self) -> str:
-        opts_arg = (', ' + self._opts) if self._opts else ''
+        opts_arg = (', ' + str(self._opts)) if self._opts else ''
         return f'sim.PropertyGroup({self._object.handle}{opts_arg})'
 
     r'''
