@@ -33,7 +33,7 @@ class PropertyGroup:
             return lambda *args: obj.callMethod(k, *args)
         elif ptype == sim.propertytype_group:
             return PropertyGroup(obj, prefix=k)
-        elif ptype:
+        elif ptype is not None:
             v = obj.callMethod('getProperty', k, {'type': ptype})
             # TODO: freeze matrix/quaternion values
             return v
