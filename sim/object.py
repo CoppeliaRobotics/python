@@ -6,9 +6,9 @@ from . import const as sim
 from .propertygroup import PropertyGroup
 
 
-propertyInfo = {}  # cache for property info, by objectType
+propertyInfo = {}  # cache for property info, by object type
 
-LOCAL_ATTRS = ('_properties', '_handle', '_objectType')
+LOCAL_ATTRS = ('_properties', '_handle', '_type')
 
 
 class Object:
@@ -20,7 +20,7 @@ class Object:
         assert isinstance(handle, int)
         self._properties = None
         self._handle = handle
-        self._objectType = ''
+        self._type = ''
 
     def _setupPropertyGroups(self):
         if self._properties: return
@@ -30,7 +30,7 @@ class Object:
 
         handle = self._handle
 
-        self._objectType = Object._callMethod(handle, 'getStringProperty', 'objectType')
+        self._type = Object._callMethod(handle, 'getStringProperty', 'type')
 
         self._properties = PropertyGroup(self)
 
@@ -76,9 +76,9 @@ class Object:
         return self._handle
 
     @property
-    def objectType(self) -> int:
+    def type(self) -> int:
         self._setupPropertyGroups()
-        return self._objectType
+        return self._type
 
     def callMethod(self, method: str, *args: Any) -> Any:
         return Object._callMethod(self.handle, method, *args)
@@ -91,10 +91,10 @@ class Object:
             pname: str,
             opts: dict[str, Any] | None = None,
     ) -> tuple[int, int, str]:
-        if self.objectType not in propertyInfo:
-            propertyInfo[self.objectType] = {}
-        if pname in propertyInfo[self.objectType]:
-            ptype, pflags, descr = propertyInfo[self.objectType][pname]
+        if self.type not in propertyInfo:
+            propertyInfo[self.type] = {}
+        if pname in propertyInfo[self.type]:
+            ptype, pflags, descr = propertyInfo[self.type][pname]
         else:
             ptype, pflags, descr = self.callMethod('getPropertyInfo', pname, opts or {})
             if pflags and (pflags & sim.propertyinfo_removable) > 0:
@@ -106,5 +106,5 @@ class Object:
                 else:
                     ptype, pflags, descr = None, None, None
             if ptype:
-                propertyInfo[self.objectType][pname] = (ptype, pflags, descr)
+                propertyInfo[self.type][pname] = (ptype, pflags, descr)
         return ptype, pflags, descr
