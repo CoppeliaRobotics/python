@@ -92,11 +92,8 @@ class Object:
         self._setupPropertyGroups()
         return self._type
 
-    def callMethod(self, method: str, *args: Any) -> Any:
-        return Object._callMethod(self.handle, method, *args)
-
     def isValid(self) -> bool:
-        return self.callMethod('isValid')
+        return self._callMethod(self.handle, 'isValid')
 
     def getPropertyInfo(
             self,
@@ -108,11 +105,11 @@ class Object:
         if pname in propertyInfo[self.type]:
             ptype, pflags, descr = propertyInfo[self.type][pname]
         else:
-            ptype, pflags, descr = self.callMethod('getPropertyInfo', pname, opts or {})
+            ptype, pflags, descr = self._callMethod(self.handle, 'getPropertyInfo', pname, opts or {})
             if pflags and (pflags & sim.propertyinfo_removable) > 0:
                 return ptype, pflags, descr
             if not ptype:
-                pn, pc = self.callMethod('getPropertyName', 0, {'prefix': pname + '.'})
+                pn, pc = self._callMethod(self.handle, 'getPropertyName', 0, {'prefix': pname + '.'})
                 if pn:
                     ptype, pflags, descr = 'group', 0, ''
                 else:

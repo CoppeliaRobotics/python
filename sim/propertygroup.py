@@ -30,11 +30,11 @@ class PropertyGroup:
         obj = self._object
         ptype, pflags, descr = obj.getPropertyInfo(k, {'noError': True})
         if ptype == sim.propertytype_method:
-            return lambda *args: obj.callMethod(k, *args)
+            return lambda *args: obj._callMethod(obj.handle, k, *args)
         elif ptype == sim.propertytype_group:
             return PropertyGroup(obj, prefix=k)
         elif ptype is not None:
-            v = obj.callMethod('getProperty', k, {'type': ptype})
+            v = obj._callMethod(obj.handle, 'getProperty', k, {'type': ptype})
             # TODO: freeze matrix/quaternion values
             return v
         else:
@@ -53,7 +53,7 @@ class PropertyGroup:
             k = prefix + '.' + k
 
         obj = self._object
-        obj.callMethod('setProperty', k, v, type=self._opts.get('newPropertyForcedType'))
+        obj._callMethod(obj.handle, 'setProperty', k, v, {'type': self._opts.get('newPropertyForcedType')})
 
     def __str__(self) -> str:
         opts_arg = (', ' + str(self._opts)) if self._opts else ''
