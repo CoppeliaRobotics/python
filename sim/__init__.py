@@ -11,7 +11,7 @@ class Color(np.ndarray):
     CBOR_TAG = 4294970000
 
     def __cbor__(self):
-        return cbor2.CBORTag(Color.CBOR_TAG, self.ravel(order='C'))
+        return cbor2.CBORTag(Color.CBOR_TAG, self.ravel(order='C').tolist())
 
     @staticmethod
     def fromcbor(tag: cbor2.CBORTag):
@@ -23,7 +23,7 @@ class Matrix(np.ndarray):
     CBOR_TAG = 40
 
     def __cbor__(self):
-        return cbor2.CBORTag(Matrix.CBOR_TAG, [self.shape, self.ravel(order='C')])
+        return cbor2.CBORTag(Matrix.CBOR_TAG, [self.shape, self.ravel(order='C').tolist()])
 
     @staticmethod
     def fromcbor(tag: cbor2.CBORTag):
@@ -37,7 +37,7 @@ class Quaternion(np.ndarray):
     CBOR_TAG = 4294980000
 
     def __cbor__(self):
-        return cbor2.CBORTag(Quaternion.CBOR_TAG, self.ravel(order='C'))
+        return cbor2.CBORTag(Quaternion.CBOR_TAG, self.ravel(order='C').tolist())
 
     @staticmethod
     def fromcbor(tag: cbor2.CBORTag):
@@ -49,7 +49,7 @@ class Pose(np.ndarray):
     CBOR_TAG = 4294980500
 
     def __cbor__(self):
-        return cbor2.CBORTag(Pose.CBOR_TAG, self.ravel(order='C'))
+        return cbor2.CBORTag(Pose.CBOR_TAG, self.ravel(order='C').tolist())
 
     @staticmethod
     def fromcbor(tag: cbor2.CBORTag):
