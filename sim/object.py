@@ -5,6 +5,8 @@ from typing import Any, Callable
 from . import const as sim
 from .propertygroup import PropertyGroup
 
+import cbor2
+
 
 propertyInfo = {}  # cache for property info, by object type
 
@@ -12,6 +14,8 @@ LOCAL_ATTRS = ('_properties', '_handle', '_type')
 
 
 class Object:
+    CBOR_TAG = 4294999999
+
     _callMethod = None
 
     def __init__(self, handle: int):
@@ -21,6 +25,14 @@ class Object:
         self._properties = None
         self._handle = handle
         self._type = ''
+
+    def __cbor__(self):
+        return cbor2.CBORTag(Object.CBOR_TAG, self._handle)
+
+    @staticmethod
+    def fromcbor(tag: cbor2.CBORTag):
+        if tag.tag == Object.CBOR_TAG:
+            return Object(tag.value)
 
     def _setupPropertyGroups(self):
         if self._properties: return
