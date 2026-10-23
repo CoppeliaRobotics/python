@@ -112,7 +112,7 @@ class ObjectArray:
         return sum(1 for child in siblings if child.name == name)
 
     def __str__(self) -> str:
-        return f'{type(self).__name__}{self.tolist()}'
+        return f'sim.ObjectArray({self.tolist()})'
 
     def __cbor__(self):
         return cbor2.CBORTag(self.CBOR_TAG, self.tolist())
