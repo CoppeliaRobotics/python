@@ -17,7 +17,10 @@ class ObjectArray:
         if isinstance(arg, int):
             arg = Object(arg)
 
-        if isinstance(arg, (list, tuple)):
+        if isinstance(arg, tuple):
+            arg = list(arg)
+
+        if isinstance(arg, list):
             n = count if count is not None else len(arg)
             for i in range(n):
                 v = arg[i]
@@ -34,7 +37,7 @@ class ObjectArray:
             assert self[0] == arg, (
                 f'implicit {type(self).__name__} must point to first object of the array'
             )
-        elif isinstance(arg, (list, tuple)):
+        elif isinstance(arg, list):
             # explicit object array
             object.__setattr__(self, '_objects', arg)
             count = count if count is not None else len(arg)
