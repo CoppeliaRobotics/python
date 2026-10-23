@@ -28,3 +28,9 @@ class Matrix(np.ndarray):
             dims, data = tag.value
             arr = np.array(data, dtype=np.float64)
             return arr.reshape(dims, order='C').view(Matrix)
+
+
+def Vector(n: int, data: list[float] | None = None):
+    if data is None:
+        data = [0.] * n
+    return Matrix(n, 1, data)
