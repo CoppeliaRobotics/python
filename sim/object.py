@@ -31,6 +31,9 @@ class Object:
             return False
         return self._handle == other._handle
 
+    def __hash__(self):
+        return hash((self._type, self._handle))
+
     def __cbor__(self):
         return cbor2.CBORTag(Object.CBOR_TAG, self._handle)
 
