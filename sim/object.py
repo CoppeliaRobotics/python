@@ -26,6 +26,11 @@ class Object:
         self._handle = handle
         self._type = ''
 
+    def __eq__(self, other):
+        if not isinstance(other, Object):
+            return False
+        return self._handle == other._handle
+
     def __cbor__(self):
         return cbor2.CBORTag(Object.CBOR_TAG, self._handle)
 
