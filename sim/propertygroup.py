@@ -55,7 +55,7 @@ class PropertyGroup:
         obj = self._object
         obj._callMethod(obj.handle, 'setProperty', k, v, {'type': self._opts.get('newPropertyForcedType')})
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         opts_arg = (', ' + str(self._opts)) if self._opts else ''
         return f'sim.PropertyGroup({self._object.handle}{opts_arg})'
 

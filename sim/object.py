@@ -34,6 +34,9 @@ class Object:
     def __hash__(self):
         return hash((self._type, self._handle))
 
+    def __repr__(self) -> str:
+        return f'sim.Object({self.handle})'
+
     def __cbor__(self):
         return cbor2.CBORTag(Object.CBOR_TAG, self._handle)
 
@@ -83,9 +86,6 @@ class Object:
         self._setupPropertyGroups()
 
         self._properties.__setattr__(k, v)
-
-    def __str__(self) -> str:
-        return f'sim.Object({self.handle})'
 
     def __dir__(self) -> list[str]:
         return dir(self._properties)

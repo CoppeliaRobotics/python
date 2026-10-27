@@ -111,7 +111,7 @@ class ObjectArray:
         name = object0.name
         return sum(1 for child in siblings if child.name == name)
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return f'sim.ObjectArray({self.tolist()})'
 
     def __cbor__(self):
