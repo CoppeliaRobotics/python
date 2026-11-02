@@ -10,7 +10,10 @@ if TYPE_CHECKING:
 
 
 class PropertyGroup:
-    def __init__(self, obj: Object, **kwargs: Any):
+    def __init__(self, obj: Object | int, **kwargs: Any):
+        if isinstance(obj, int):
+            from .object import Object
+            obj = Object(obj)
         super().__setattr__('_object', obj)
         super().__setattr__('_opts', copy(kwargs))
         super().__setattr__('_localProperties', {})
