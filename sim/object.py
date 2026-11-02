@@ -61,7 +61,7 @@ class Object:
 
         namespaces = Object._callMethod(handle, 'getStringArrayProperty', 'metaInfo.namespaces')
         for ns in namespaces:
-            super().__setattr__(ns, PropertyGroup(handle, prefix=ns))
+            super().__setattr__(ns, PropertyGroup(self, prefix=ns))
 
     def __getattr__(self, k: str) -> Any:
         assert isinstance(k, str)
