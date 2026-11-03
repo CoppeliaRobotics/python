@@ -88,6 +88,7 @@ class Object:
         self._properties.__setattr__(k, v)
 
     def __dir__(self) -> list[str]:
+        self._setupPropertyGroups()
         return dir(self._properties)
 
     @property
