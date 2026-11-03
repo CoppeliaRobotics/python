@@ -107,21 +107,14 @@ class Object:
             self,
             pname: str,
             opts: dict[str, Any] | None = None,
-    ) -> tuple[int, int, str]:
+    ) -> tuple[int | None, int | None, str | None]:
         if self.type not in propertyInfo:
             propertyInfo[self.type] = {}
         if pname in propertyInfo[self.type]:
             ptype, pflags, descr = propertyInfo[self.type][pname]
         else:
             ptype, pflags, descr = self._callMethod(self.handle, 'getPropertyInfo', pname, opts or {})
-            if pflags and (pflags & sim.propertyinfo_removable) > 0:
-                return ptype, pflags, descr
-            if not ptype:
-                pn, pc = self._callMethod(self.handle, 'getPropertyName', 0, {'prefix': pname + '.'})
-                if pn:
-                    ptype, pflags, descr = 'group', 0, ''
-                else:
-                    ptype, pflags, descr = None, None, None
-            if ptype:
+            if ptype is not None and (pflags & sim.propertyinfo_removable) == 0:
+                # removable properties must not be cached:
                 propertyInfo[self.type][pname] = (ptype, pflags, descr)
         return ptype, pflags, descr
