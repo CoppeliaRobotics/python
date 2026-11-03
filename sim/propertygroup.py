@@ -62,29 +62,21 @@ class PropertyGroup:
         opts_arg = (', ' + str(self._opts)) if self._opts else ''
         return f'sim.PropertyGroup({self._object.handle}{opts_arg})'
 
-    r'''
     def __dir__(self):
+        obj = self._object
         prefix = self._opts.get('prefix', '')
         if prefix != '':
             prefix += '.'
-        props = {}
+        props: set[str] = set()
         for i in range(100000):
-            pname, pclass = self.getPropertyName(i, {'prefix': prefix})
+            pname, pclass = obj.getPropertyName(i, {'prefix': prefix})
             if not pname: break
             pname = pname[len(prefix):]
             import re
             pname2 = re.sub(r'\..*', '', pname)
             if pname == pname2:
-                ptype, pflags, descr = self.getPropertyInfo(prefix + pname)
-                if readable := ((pflags & 2) == 0):
-                    try:
-                        props[pname2] = self.getProperty(prefix + pname)
-                    except Exception as e:
-                        raise Exception(f'error reading property {pname} ({pflags=}): {e}')
-                elif pname2 not in props:
-                    props[pname2] = PropertyGroup(self._object, prefix=(prefix + pname))
-        return props.keys()
-    '''
+                props.add(pname)
+        return sorted(props)
 
     def registerLocalProperty(
             self,
