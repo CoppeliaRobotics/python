@@ -2,7 +2,7 @@ import cbor2
 import numpy as np
 
 class Matrix(np.ndarray):
-    CBOR_TAG = 40
+    CBOR_TAG = 40  # RFC8746 multi-dimensional array tag
 
     def __new__(cls, *args, dtype=float):
         if len(args) == 1:
