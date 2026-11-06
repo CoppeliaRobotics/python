@@ -1,0 +1,12 @@
+from types import SimpleNamespace
+
+#py from sim.apidoc import *
+#py enums = get_enums()
+#py for e in enums.values():
+`e.name` = SimpleNamespace(
+#py for k, v in e.items.items():
+    `k` = `v`,
+#py endfor
+)
+
+#py endfor

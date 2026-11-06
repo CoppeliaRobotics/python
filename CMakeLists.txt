@@ -10,6 +10,29 @@ if(NOT COPPELIASIM_INCLUDE_DIR)
 endif()
 list(APPEND CMAKE_MODULE_PATH ${COPPELIASIM_INCLUDE_DIR}/cmake)
 find_package(CoppeliaSim 4.5.0.7 REQUIRED)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+add_custom_command(
+    OUTPUT
+        ${CMAKE_CURRENT_BINARY_DIR}/generated/sim/enums.py
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/generated/sim
+    COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/pycpp.py
+        --input-file ${CMAKE_CURRENT_SOURCE_DIR}/templates/sim/enums.py.in
+        --output-file ${CMAKE_CURRENT_BINARY_DIR}/generated/sim/enums.py
+        --python-path ${CMAKE_CURRENT_SOURCE_DIR}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS
+        ${COPPELIASIM_INCLUDE_DIR}/sim/objects.xml
+        ${CMAKE_CURRENT_SOURCE_DIR}/templates/sim/enums.py.in
+        ${CMAKE_CURRENT_SOURCE_DIR}/sim/apidoc.py
+        ${CMAKE_CURRENT_SOURCE_DIR}/pycpp.py
+)
+add_custom_target(
+    generate_sim_const_py ALL
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/generated/sim/enums.py
+)
+coppeliasim_add_python(${CMAKE_CURRENT_BINARY_DIR}/generated/sim/enums.py SUBDIR sim)
 
 file(GLOB PYTHON_FILES CONFIGURE_DEPENDS *.py)
 foreach(PYTHON_FILE IN LISTS PYTHON_FILES)
