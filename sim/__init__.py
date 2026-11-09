@@ -6,7 +6,7 @@ from .matrix import Matrix, Vector
 from .quaternion import Quaternion
 from .pose import Pose
 from .const import *
-if '_GENERATING_ENUMS_PY' not in __import__('os').environ:
+if not hasattr(__import__('builtins'), '_GENERATING_ENUMS_PY'):
     from .enums import *
 
 from . import const as sim

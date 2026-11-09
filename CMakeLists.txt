@@ -16,12 +16,12 @@ add_custom_command(
     OUTPUT
         ${CMAKE_CURRENT_BINARY_DIR}/generated/sim/enums.py
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/generated/sim
-    COMMAND ${CMAKE_COMMAND} -E env _GENERATING_ENUMS_PY=1
-        ${Python3_EXECUTABLE}
+    COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/pycpp.py
         --input-file ${CMAKE_CURRENT_SOURCE_DIR}/templates/sim/enums.py.in
         --output-file ${CMAKE_CURRENT_BINARY_DIR}/generated/sim/enums.py
         --python-path ${CMAKE_CURRENT_SOURCE_DIR}
+        --param _GENERATING_ENUMS_PY=1
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     DEPENDS
         ${COPPELIASIM_INCLUDE_DIR}/sim/objects.xml

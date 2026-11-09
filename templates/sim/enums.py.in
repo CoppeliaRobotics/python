@@ -1,5 +1,9 @@
 from types import SimpleNamespace
 
+#py if '_GENERATING_ENUMS_PY' in pycpp.params:
+#py import builtins
+#py setattr(builtins, '_GENERATING_ENUMS_PY', True)
+#py endif
 #py from sim.apidoc import *
 #py enums = get_enums()
 #py for e in enums.values():
