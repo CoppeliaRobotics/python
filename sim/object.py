@@ -1,11 +1,15 @@
 from copy import copy
 from types import SimpleNamespace
 from typing import Any, Callable
+from typing import TYPE_CHECKING
 
 from . import const as sim
 from .propertygroup import PropertyGroup
 
 import cbor2
+
+if TYPE_CHECKING:
+    from .functionsproxy import FunctionsProxy
 
 
 propertyInfo = {}  # cache for property info, by object type
@@ -103,6 +107,25 @@ class Object:
 
     def isValid(self) -> bool:
         return self._callMethod(self.handle, 'isValid')
+
+    def getFunctions(self) -> 'FunctionsProxy':
+        """
+        Returns the script's functions as callables (Python counterpart of Lua's
+        `script:getFunctions()`):
+
+            script.getFunctions().someFunction(1, 2)
+            script.getFunctions()['someFunction'](1, 2)
+
+        Only available on scripts. The calls reach the script's **Lua** functions:
+        `callFunction('@' + name, ...)` uses the engine's leading-'@' direct-call
+        form, which bypasses `sysCall_ext` (whose bare names are routed to Python
+        for Python-scripted scripts) and works for plain Lua scripts too.
+        """
+        if self.type != 'script':
+            raise TypeError(
+                f'getFunctions() is only available on script objects, not on {self.type!r}')
+        from .functionsproxy import FunctionsProxy
+        return FunctionsProxy(self)
 
     def getPropertyInfo(
             self,
