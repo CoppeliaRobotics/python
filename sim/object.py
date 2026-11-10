@@ -65,7 +65,12 @@ class Object:
 
         namespaces = Object._callMethod(handle, 'getStringArrayProperty', 'metaInfo.namespaces')
         for ns in namespaces:
-            super().__setattr__(ns, PropertyGroup(self, prefix=ns))
+            ft = None
+            if ns in ('refs', 'origRefs'):
+                ft = 22  # sim.propertytype_handlearray
+            elif self._type == 'app' and ns == 'namedParam':
+                ft = 3  # sim.propertytype_string
+            super().__setattr__(ns, PropertyGroup(self, prefix=ns, newPropertyForcedType=ft))
 
     def __getattr__(self, k: str) -> Any:
         assert isinstance(k, str)
