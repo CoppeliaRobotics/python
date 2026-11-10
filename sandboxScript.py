@@ -1,3 +1,6 @@
+#luaExec sim = require'sim-2'
+#luaExec sim.self.restartOnError = true
+
 import sim
 
 def sysCall_init():
