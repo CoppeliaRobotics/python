@@ -1,6 +1,19 @@
 import os
 
 
+# Third-party packages required by the `sim` module (pip name, import name).
+REQUIRED_PACKAGES = (
+    ('pyzmq', 'zmq'),
+    ('cbor2', 'cbor2'),
+    ('numpy', 'numpy'),
+)
+
+# Prefix of the one-line message the Lua wrapper recognises (so it can report it
+# as a clean error instead of "The Python interpreter terminated with exit code
+# ..."). Keep in sync with pythonWrapper-3.lua.
+_MISSING_PACKAGES_MARKER = '[missing-python-packages]'
+
+
 def _processAlive(pid: int) -> bool:
     """
     Best-effort check whether a process with that pid still exists.
@@ -58,6 +71,50 @@ def _watchSimulatorProcess(pid: int, checkInterval: float = 1.0) -> None:
             os._exit(0)
 
 
+def _formatPackageList(names) -> str:
+    if len(names) == 1:
+        return names[0]
+    return ', '.join(names[:-1]) + ' and ' + names[-1]
+
+
+def _reportPackageProblem(msg: str) -> None:
+    import sys
+    print(_MISSING_PACKAGES_MARKER + ' ' + msg, file=sys.stderr, flush=True)
+    sys.exit(42)
+
+
+def _missingPackages() -> list:
+    """
+    Returns the pip names of the required packages that are not importable,
+    without importing them (cheap check based on the module specs).
+    """
+    import importlib.util
+    missing = []
+    for pipName, importName in REQUIRED_PACKAGES:
+        try:
+            found = importlib.util.find_spec(importName) is not None
+        except (ImportError, ValueError, AttributeError):
+            found = False
+        if not found:
+            missing.append(pipName)
+    return missing
+
+
+def _checkRequiredPackages() -> None:
+    """
+    Reports missing required packages with a clear message instead of letting a
+    cryptic ImportError traceback (plus "terminated with exit code 1") surface.
+    """
+    import sys
+    missing = _missingPackages()
+    if missing:
+        exe = sys.executable
+        _reportPackageProblem(
+            f'detected some missing Python packages: {_formatPackageList(missing)} '
+            f'are required, make sure to install them for {exe!r} '
+            f'(e.g. "{exe}" -m pip install {" ".join(missing)})')
+
+
 def __main():
     global __main
     del __main
@@ -79,8 +136,14 @@ def __main():
             sys.path.append(__p)
 
     _globals = globals()
-    import sim
-    from sim.zmqremoteapi import PythonWrapper
+    _checkRequiredPackages()
+    try:
+        import sim
+        from sim.zmqremoteapi import PythonWrapper
+    except ImportError as e:
+        _reportPackageProblem(
+            f'failed to import the sim module or one of its dependencies for '
+            f'{sys.executable!r}: {e}')
     __pythonWrapper = PythonWrapper(_globals, **__args)
     _globals["print"] = __pythonWrapper.rapi.print
     # Expose the RPC object: it lets the script call Lua functions as plain
